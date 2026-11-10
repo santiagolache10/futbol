@@ -1,34 +1,243 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Fútbol · Relaciones JPA</title>
-    <style>
-        body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
-        .club { border: 1px solid #ccc; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
-        h1 { margin-bottom: .2rem; }
-        small { color: #666; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relaciones · Gestión deportiva</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--txt:#1b2236;--mut:#6b7691;--brd:#e2e7f3;--pri:#0f9d8a;--pri2:#0b7a6b;--dan:#e5484d}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--txt)}
+header{background:var(--card);border-bottom:1px solid var(--brd);position:sticky;top:0;z-index:5}
+.bar{max-width:1100px;margin:auto;display:flex;align-items:center;gap:1rem;padding:.7rem 1rem;flex-wrap:wrap}
+.logo{font-weight:700}
+.logo small{display:block;font-weight:400;color:var(--mut);font-size:.7rem;letter-spacing:.08em}
+nav{display:flex;gap:.3rem;flex-wrap:wrap}
+nav a{padding:.45rem .8rem;border-radius:10px;color:var(--mut);text-decoration:none;font-size:.9rem}
+nav a:hover{background:var(--bg)}
+nav a.on{background:#e3f6f3;color:var(--pri2);font-weight:600}
+main{max-width:1100px;margin:auto;padding:1.5rem 1rem 3rem}
+h1{font-size:1.5rem;margin:0 0 .2rem}
+.sub{color:var(--mut);margin:0 0 1.2rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:1.5rem}
+.card{background:var(--card);border:1px solid var(--brd);border-radius:14px;padding:1rem}
+a.card{color:inherit;text-decoration:none}
+a.card:hover{border-color:var(--pri)}
+.num{font-size:2rem;font-weight:700}
+.lbl{color:var(--mut);font-size:.85rem}
+.box{background:var(--card);border:1px solid var(--brd);border-radius:14px;padding:1rem;margin-bottom:1.2rem;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th{text-align:left;color:var(--mut);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;padding:.5rem}
+td{padding:.6rem .5rem;border-top:1px solid var(--brd);vertical-align:top}
+.chip{display:inline-block;background:#e3f6f3;color:var(--pri2);border-radius:999px;padding:.15rem .6rem;font-size:.75rem;margin:0 .25rem .25rem 0}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.8rem}
+label{display:flex;flex-direction:column;font-size:.8rem;color:var(--mut);gap:.25rem}
+input,select{padding:.55rem;border:1px solid var(--brd);border-radius:10px;font:inherit;color:var(--txt);background:#fff}
+select[multiple]{min-height:90px}
+.acts{display:flex;gap:.5rem;align-items:end}
+button{border:0;border-radius:10px;padding:.55rem 1rem;font:inherit;font-weight:600;cursor:pointer;background:var(--pri);color:#fff}
+button.sec{background:#e9edf6;color:var(--txt)}
+button.dan{background:var(--dan)}
+button.sm{padding:.3rem .65rem;font-size:.8rem}
+#msg{padding:.7rem 1rem;border-radius:10px;margin-bottom:1rem;display:none}
+#msg.ok{display:block;background:#e3f6f3;color:var(--pri2)}
+#msg.err{display:block;background:#fde8e8;color:#b42318}
+.vacio{color:var(--mut);padding:1rem;text-align:center}
+</style>
 </head>
 <body>
-    <h1>Clubes de fútbol</h1>
-    <small>Relaciones: OneToOne · OneToMany · ManyToOne · ManyToMany</small>
-    <div id="lista"></div>
+<header><div class="bar">
+  <div class="logo">Relaciones<small>GESTIÓN DEPORTIVA</small></div>
+  <nav id="nav"></nav>
+</div></header>
+<main><div id="msg"></div><div id="vista"></div></main>
 
-    <script>
-        fetch('/api/clubes')
-            .then(r => r.json())
-            .then(clubes => {
-                document.getElementById('lista').innerHTML = clubes.map(c => `
-                    <div class="club">
-                        <h2>${c.nombre}</h2>
-                        <p><b>Entrenador:</b> ${c.entrenador ? c.entrenador.nombre + ' ' + c.entrenador.apellido : '—'}</p>
-                        <p><b>Asociación:</b> ${c.asociacion ? c.asociacion.nombre : '—'}</p>
-                        <p><b>Jugadores:</b> ${c.jugadores.map(j => j.nombre + ' (' + j.posicion + ')').join(', ') || '—'}</p>
-                        <p><b>Competiciones:</b> ${c.competiciones.map(x => x.nombre).join(', ') || '—'}</p>
-                    </div>`).join('');
-            });
-    </script>
+<script>
+const ENT = {
+  clubes: { titulo: 'Clubes', campos: [
+    { k: 'nombre', t: 'Nombre', tipo: 'text' },
+    { k: 'entrenador', t: 'Entrenador', tipo: 'ref', de: 'entrenadores' },
+    { k: 'asociacion', t: 'Asociación', tipo: 'ref', de: 'asociaciones' },
+    { k: 'jugadores', t: 'Jugadores', tipo: 'multi', de: 'jugadores' },
+    { k: 'competiciones', t: 'Competiciones', tipo: 'multi', de: 'competiciones' }] },
+  jugadores: { titulo: 'Jugadores', campos: [
+    { k: 'nombre', t: 'Nombre', tipo: 'text' },
+    { k: 'apellido', t: 'Apellido', tipo: 'text' },
+    { k: 'numero', t: 'Número', tipo: 'number' },
+    { k: 'posicion', t: 'Posición', tipo: 'text' }] },
+  entrenadores: { titulo: 'Entrenadores', campos: [
+    { k: 'nombre', t: 'Nombre', tipo: 'text' },
+    { k: 'apellido', t: 'Apellido', tipo: 'text' },
+    { k: 'edad', t: 'Edad', tipo: 'number' },
+    { k: 'nacionalidad', t: 'Nacionalidad', tipo: 'text' }] },
+  asociaciones: { titulo: 'Asociaciones', campos: [
+    { k: 'nombre', t: 'Nombre', tipo: 'text' },
+    { k: 'pais', t: 'País', tipo: 'text' },
+    { k: 'presidente', t: 'Presidente', tipo: 'text' }] },
+  competiciones: { titulo: 'Competiciones', campos: [
+    { k: 'nombre', t: 'Nombre', tipo: 'text' },
+    { k: 'montoPremio', t: 'Premio', tipo: 'number' },
+    { k: 'fechaInicio', t: 'Inicio', tipo: 'date' },
+    { k: 'fechaFin', t: 'Fin', tipo: 'date' }] }
+};
+
+let datos = {};
+let editando = null;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nom = o => o ? ([o.nombre, o.apellido].filter(Boolean).join(' ') || ('#' + o.id)) : '—';
+const etq = (de, o) => nom(datos[de].find(x => x.id === o.id) || o);
+
+async function api(ruta, metodo = 'GET', cuerpo) {
+  const r = await fetch('/api/' + ruta, {
+    method: metodo,
+    headers: { 'Content-Type': 'application/json' },
+    body: cuerpo ? JSON.stringify(cuerpo) : undefined
+  });
+  if (!r.ok) {
+    let m = 'Error ' + r.status;
+    try { m = (await r.json()).error || m; } catch (e) { }
+    throw new Error(m);
+  }
+  return r.status === 204 ? null : r.json();
+}
+
+async function cargar() {
+  const claves = Object.keys(ENT);
+  const res = await Promise.all(claves.map(k => api(k)));
+  claves.forEach((k, i) => datos[k] = res[i]);
+}
+
+function aviso(txt, ok = true) {
+  const m = document.getElementById('msg');
+  m.textContent = txt;
+  m.className = ok ? 'ok' : 'err';
+  setTimeout(() => { m.className = ''; }, 4000);
+}
+
+function pintarNav(act) {
+  document.getElementById('nav').innerHTML =
+    `<a href="#inicio" class="${act === 'inicio' ? 'on' : ''}">Inicio</a>` +
+    Object.keys(ENT).map(k => `<a href="#${k}" class="${act === k ? 'on' : ''}">${ENT[k].titulo}</a>`).join('');
+}
+
+function vistaInicio() {
+  const tarjetas = Object.keys(ENT).map(k =>
+    `<a class="card" href="#${k}"><div class="num">${datos[k].length}</div><div class="lbl">${ENT[k].titulo}</div></a>`).join('');
+  const filas = datos.clubes.map(c => `<tr>
+    <td><b>${esc(c.nombre)}</b></td>
+    <td>${esc(nom(c.entrenador))}</td>
+    <td>${esc(c.asociacion ? c.asociacion.nombre : '—')}</td>
+    <td>${(c.jugadores || []).length}</td>
+    <td>${(c.competiciones || []).map(x => `<span class="chip">${esc(x.nombre)}</span>`).join('')}</td></tr>`).join('');
+  return `<h1>Panel principal</h1><p class="sub">Resumen de la base de datos y accesos rápidos</p>
+    <div class="cards">${tarjetas}</div>
+    <div class="box"><h3 style="margin-top:0">Clubes</h3>
+    <table><tr><th>Club</th><th>Entrenador</th><th>Asociación</th><th>Jugadores</th><th>Competiciones</th></tr>
+    ${filas || '<tr><td colspan="5" class="vacio">Sin clubes</td></tr>'}</table></div>`;
+}
+
+function vistaEntidad(k) {
+  const e = ENT[k];
+  const opciones = de => datos[de].map(o => `<option value="${o.id}">${esc(nom(o))}</option>`).join('');
+  const inputs = e.campos.map(f => {
+    if (f.tipo === 'ref')
+      return `<label>${f.t}<select name="${f.k}"><option value="">— Ninguno —</option>${opciones(f.de)}</select></label>`;
+    if (f.tipo === 'multi')
+      return `<label>${f.t} (Ctrl para varios)<select name="${f.k}" multiple>${opciones(f.de)}</select></label>`;
+    return `<label>${f.t}<input name="${f.k}" type="${f.tipo}" required></label>`;
+  }).join('');
+
+  const celda = (o, f) => {
+    const v = o[f.k];
+    if (f.tipo === 'ref') return v ? esc(etq(f.de, v)) : '—';
+    if (f.tipo === 'multi') return (v || []).map(x => `<span class="chip">${esc(etq(f.de, x))}</span>`).join('') || '—';
+    return esc(v);
+  };
+  const filas = datos[k].map(o => `<tr><td>${o.id}</td>
+    ${e.campos.map(f => `<td>${celda(o, f)}</td>`).join('')}
+    <td><button class="sec sm" data-ed="${o.id}">Editar</button> <button class="dan sm" data-del="${o.id}">Eliminar</button></td></tr>`).join('');
+
+  return `<h1>${e.titulo}</h1><p class="sub">Crea, edita o elimina registros</p>
+    <div class="box"><form id="frm">${inputs}
+      <div class="acts"><button type="submit" id="btnGuardar">Guardar</button>
+      <button type="button" class="sec" id="btnCancelar">Limpiar</button></div></form></div>
+    <div class="box"><table><tr><th>ID</th>${e.campos.map(f => `<th>${f.t}</th>`).join('')}<th></th></tr>
+    ${filas || `<tr><td colspan="${e.campos.length + 2}" class="vacio">Sin registros</td></tr>`}</table></div>`;
+}
+
+function enlazar(k) {
+  const e = ENT[k];
+  const frm = document.getElementById('frm');
+
+  document.getElementById('btnCancelar').onclick = () => {
+    editando = null;
+    frm.reset();
+    document.getElementById('btnGuardar').textContent = 'Guardar';
+  };
+
+  frm.onsubmit = async ev => {
+    ev.preventDefault();
+    const cuerpo = {};
+    e.campos.forEach(f => {
+      const el = frm.elements[f.k];
+      if (f.tipo === 'number') cuerpo[f.k] = Number(el.value);
+      else if (f.tipo === 'ref') cuerpo[f.k] = el.value ? { id: Number(el.value) } : null;
+      else if (f.tipo === 'multi') cuerpo[f.k] = [...el.selectedOptions].map(o => ({ id: Number(o.value) }));
+      else cuerpo[f.k] = el.value;
+    });
+    try {
+      const eraEdicion = editando !== null;
+      if (eraEdicion) {
+        cuerpo.id = editando;
+        await api(`${k}/${editando}`, 'PUT', cuerpo);
+      } else {
+        await api(k, 'POST', cuerpo);
+      }
+      editando = null;
+      await cargar();
+      mostrar();
+      aviso(eraEdicion ? 'Registro actualizado' : 'Registro creado');
+    } catch (err) { aviso(err.message, false); }
+  };
+
+  document.querySelectorAll('[data-ed]').forEach(b => b.onclick = () => {
+    const o = datos[k].find(x => x.id === Number(b.dataset.ed));
+    editando = o.id;
+    e.campos.forEach(f => {
+      const el = frm.elements[f.k];
+      const v = o[f.k];
+      if (f.tipo === 'ref') el.value = v ? v.id : '';
+      else if (f.tipo === 'multi') [...el.options].forEach(op => { op.selected = (v || []).some(x => x.id === Number(op.value)); });
+      else el.value = v ?? '';
+    });
+    document.getElementById('btnGuardar').textContent = 'Guardar cambios';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    if (!confirm('¿Eliminar este registro?')) return;
+    try {
+      await api(`${k}/${b.dataset.del}`, 'DELETE');
+      await cargar();
+      mostrar();
+      aviso('Registro eliminado');
+    } catch (err) { aviso(err.message, false); }
+  });
+}
+
+function mostrar() {
+  const h = (location.hash || '#inicio').slice(1);
+  const k = ENT[h] ? h : 'inicio';
+  pintarNav(k);
+  document.getElementById('vista').innerHTML = k === 'inicio' ? vistaInicio() : vistaEntidad(k);
+  if (k !== 'inicio') enlazar(k);
+}
+
+window.addEventListener('hashchange', () => { editando = null; mostrar(); });
+cargar().then(mostrar).catch(() => {
+  document.getElementById('vista').innerHTML = '<p class="vacio">No se pudo cargar la información.</p>';
+});
+</script>
 </body>
 </html>
